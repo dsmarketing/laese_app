@@ -1,12 +1,12 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
 
 # =========================================================================
 # 1. SIDEKONFIGURATION & BØRNEVENLIGT DESIGN (CSS)
 # =========================================================================
 st.set_page_config(page_title="Min Læse-App", page_icon="📖", layout="centered")
 
-# CSS der styler appen, så den har store knapper og letlæselig tekst på en iPad
+# CSS der styler appen til en iPad (store, farverige knapper og stor skrift)
 st.markdown("""
 <style>
     /* Gør alle standardknapper store, grønne og børnevenlige */
@@ -32,11 +32,11 @@ st.markdown("""
     .stButton>button:active {
         transform: translateY(1px);
     }
-    /* Gør tekstboksen, hvor historien vises, stor og rar at læse i (børnebogs-stil) */
+    /* Gør tekstboksen til historien stor og behagelig at læse (børnebogs-stil) */
     .story-text {
         font-size: 18pt !important;
         line-height: 1.7;
-        background-color: #fffde7; /* Let gullig papirsfarve, god for øjnene */
+        background-color: #fffde7; /* Let gul papirsfarve, som er rar for øjnene */
         padding: 25px;
         border-radius: 16px;
         border-left: 8px solid #ffeb3b;
@@ -44,7 +44,7 @@ st.markdown("""
         margin-bottom: 25px;
         color: #2c3e50;
     }
-    /* Gør overskrifter og input-felter en tand større */
+    /* Justering af tekststørrelser */
     h1 {
         color: #2c3e50;
         font-size: 26pt !important;
@@ -67,10 +67,10 @@ alder_trin = st.sidebar.selectbox(
     options=[
         "Børnehave / 4-5 år (Meget simpelt sprog, helt korte sætninger)",
         "Indskoling (0. - 2. klasse) / 6-8 år (Lix 5-15, korte ord, lydrette ord)",
-        "Mellemtrin (3. - 5. klasse) / 9-11 år (Lix 15-25, godt flow, udfordrende ord)",
+        "Melletrim (3. - 5. klasse) / 9-11 år (Lix 15-25, godt flow, udfordrende ord)",
         "Udskoling (6. - 9. klasse) / 12-15 år (Flot modent sprog)"
     ],
-    index=2 # Sætter 3.-5. klasse (Mellemtrin / 9-11 år) som standard
+    index=2  # Sætter mellemtrin (9-11 år) som standard
 )
 
 historie_type = st.sidebar.selectbox(
@@ -79,7 +79,7 @@ historie_type = st.sidebar.selectbox(
 )
 
 # =========================================================================
-# 3. BRUGER INPUT & GENERERING
+# 3. BRUGER INPUT & DIREKTE API-KALDELSE (PLAN B)
 # =========================================================================
 st.subheader("📝 Hvad skal historien handle om?")
 bruger_input = st.text_area(
@@ -92,36 +92,51 @@ if st.button("Skab historien ✨"):
     if not bruger_input.strip():
         st.warning("Husk lige at skrive et par stikord til historien først! ✍️")
     else:
-        # Tjek om Google API-nøglen er sat korrekt i Streamlit Cloud Secrets
+        # Tjek om Google API-nøglen er sat korrekt i Streamlit Secrets
         if "GOOGLE_API_KEY" not in st.secrets:
             st.error("Fejl: API-nøglen blev ikke fundet! Husk at tilføje GOOGLE_API_KEY under 'Secrets' i Streamlit Cloud.")
         else:
             with st.spinner("Gemini brygger på en magisk historie... ✍️"):
                 try:
-                    # Konfigurer Google AI biblioteket med den hemmelige nøgle
-                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                    # Vi henter API-nøglen fra dine secrets
+                    api_key = st.secrets["GOOGLE_API_KEY"]
                     
-                    # Google pakken tilføjer selv 'models/' automatisk i baggrunden
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # Vi kalder Googles v1-produktionsendpoint direkte via en standard URL-adresse
+                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
-                    # Pædagogisk prompt-opbygning, der tvinger AI til at overholde niveauet
+                    # Opbygning af den pædagogiske prompt
                     full_prompt = (
                         f"Du er en dygtig og erfaren dansk børnebogsforfatter. "
-                        f"Skriv en medrivende historie på dansk baseret på disse idéer og stikord: '{bruger_input}'.\n\n"
+                        f"Skriv en medrivende og færdig historie på dansk baseret på disse idéer: '{bruger_input}'.\n\n"
                         f"Det er ABSOLUT KRITISK, at du tilpasser sproget, sværhedsgraden, ordforrådet og sætningslængden "
                         f"til denne målgruppe: {alder_trin}.\n"
-                        f"Historien skal skrives i en {historie_type.lower()} tone, og layoutet skal være overskueligt "
-                        f"med luft mellem afsnittene, så den er let at læse for barnet."
+                        f"Historien skal skrives i en {historie_type.lower()} tone. "
+                        f"Lav masser af afsnit med god luft imellem, så teksten er visuelt overskuelig for barnet."
                     )
                     
-                    # Kald API'en og generer historien
-                    response = model.generate_content(full_prompt)
+                    # Definer data-pakken (payload) i det format Google kræver
+                    payload = {
+                        "contents": [{
+                            "parts": [{"text": full_prompt}]
+                        }]
+                    }
                     
-                    # Vis det færdige resultat i den flotte gule læseboks
-                    st.success("Så er din historie klar! Rigtig god læselyst! 🎉")
-                    st.markdown("---")
-                    st.markdown(f"<div class='story-text'>{response.text}</div>", unsafe_allow_html=True)
-                    st.markdown("---")
+                    # Send anmodningen afsted
+                    response = requests.post(url, json=payload)
+                    response_data = response.json()
                     
+                    # Pak svaret ud og hent selve historieteksten
+                    if 'candidates' in response_data:
+                        historie_tekst = response_data['candidates'][0]['content']['parts'][0]['text']
+                        
+                        st.success("Så er din historie klar! Rigtig god læselyst! 🎉")
+                        st.markdown("---")
+                        # Viser historien i den pæne gule læseboks
+                        st.markdown(f"<div class='story-text'>{historie_tekst}</div>", unsafe_allow_html=True)
+                        st.markdown("---")
+                    else:
+                        # Hvis Google sender en anden fejlbesked tilbage i JSON
+                        st.error(f"Fejlbesked fra Google API: {response_data}")
+                        
                 except Exception as e:
-                    st.error(f"Der skete en fejl under kaldet til Gemini: {e}")
+                    st.error(f"Der skete en uventet fejl under kaldet til Gemini: {e}")
