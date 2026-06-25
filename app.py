@@ -101,8 +101,8 @@ if st.button("Skab historien ✨"):
                     # Konfigurer Google AI biblioteket med den hemmelige nøgle
                     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                     
-                    # Vi bruger 'gemini-1.5-flash-latest', som løser 404/v1beta-fejlen
-                    model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
+                    # Google pakken tilføjer selv 'models/' automatisk i baggrunden
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     # Pædagogisk prompt-opbygning, der tvinger AI til at overholde niveauet
                     full_prompt = (
