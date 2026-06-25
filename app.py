@@ -92,29 +92,27 @@ if st.button("Skab historien ✨"):
     if not bruger_input.strip():
         st.warning("Husk lige at skrive et par stikord til historien først! ✍️")
     else:
-        # Tjek om Google API-nøglen er sat korrekt i Streamlit Secrets
         if "GOOGLE_API_KEY" not in st.secrets:
             st.error("Fejl: API-nøglen blev ikke fundet! Husk at tilføje GOOGLE_API_KEY under 'Secrets' i Streamlit Cloud.")
         else:
             with st.spinner("Gemini brygger på en magisk historie... ✍️"):
                 try:
-                    # Vi henter API-nøglen fra dine secrets
+                    # Hent API-nøglen fra dine secrets
                     api_key = st.secrets["GOOGLE_API_KEY"]
                     
-                    # Vi kalder Googles v1-produktionsendpoint direkte via en standard URL-adresse
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # Rigtig URL (v1beta sikrer at gemini-1.5-flash findes og virker med generateContent)
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
-                    # Opbygning af den pædagogiske prompt
+                    # Opbygning af prompten
                     full_prompt = (
                         f"Du er en dygtig og erfaren dansk børnebogsforfatter. "
                         f"Skriv en medrivende og færdig historie på dansk baseret på disse idéer: '{bruger_input}'.\n\n"
-                        f"Det er ABSOLUT KRITISK, at du tilpasser sproget, sværhedsgraden, ordforrådet og sætningslængden "
+                        f"Det is ABSOLUT KRITISK, at du tilpasser sproget, sværhedsgraden, ordforrådet og sætningslængden "
                         f"til denne målgruppe: {alder_trin}.\n"
                         f"Historien skal skrives i en {historie_type.lower()} tone. "
                         f"Lav masser af afsnit med god luft imellem, så teksten er visuelt overskuelig for barnet."
                     )
                     
-                    # Definer data-pakken (payload) i det format Google kræver
                     payload = {
                         "contents": [{
                             "parts": [{"text": full_prompt}]
@@ -125,17 +123,15 @@ if st.button("Skab historien ✨"):
                     response = requests.post(url, json=payload)
                     response_data = response.json()
                     
-                    # Pak svaret ud og hent selve historieteksten
+                    # Pak svaret ud
                     if 'candidates' in response_data:
                         historie_tekst = response_data['candidates'][0]['content']['parts'][0]['text']
                         
                         st.success("Så er din historie klar! Rigtig god læselyst! 🎉")
                         st.markdown("---")
-                        # Viser historien i den pæne gule læseboks
                         st.markdown(f"<div class='story-text'>{historie_tekst}</div>", unsafe_allow_html=True)
                         st.markdown("---")
                     else:
-                        # Hvis Google sender en anden fejlbesked tilbage i JSON
                         st.error(f"Fejlbesked fra Google API: {response_data}")
                         
                 except Exception as e:
