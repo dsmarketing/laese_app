@@ -1,94 +1,87 @@
 import streamlit as st
+from openai import OpenAI
 
-# Sæt iPad/mobil-venligt layout
-st.set_page_config(page_title="Min Læse-App", page_icon="📖", layout="centered")
+# 1. Konfiguration og opsætning af OpenAI-klient
+# Sørg for at tilføje din OPENAI_API_KEY i Streamlit Cloud under "Advanced Settings" -> Secrets
+if "OPENAI_API_KEY" in st.secrets:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+else:
+    # Hvis du tester lokalt og bruger en .env fil eller miljøvariabel
+    client = OpenAI()
 
-# CSS til at gøre designet børnevenligt (Store knapper, pæn skrifttype)
-st.markdown("""
-<style>
-    .stButton>button {
-        width: 100%;
-        background-color: #4CAF50;
-        color: white;
-        padding: 15px 20px;
-        font-size: 14pt !important;
-        border-radius: 12px;
-        border: none;
-        margin-bottom: 10px;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        color: white;
-    }
-    .story-text {
-        font-size: 16pt !important;
-        line-height: 1.6;
-        background-color: #fffde7;
-        padding: 20px;
-        border-radius: 12px;
-        border-left: 6px solid #ffeb3b;
-        margin-bottom: 25px;
-    }
-    .score-box {
-        font-size: 12pt;
-        font-weight: bold;
-        color: #1e88e5;
-        text-align: right;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.title("🧙‍♂️ Den Magiske Historiefortæller")
+st.write("Skriv dine idéer, og lad AI'en skrive en skræddersyet historie!")
 
-# Initialisering af spil-sessions (holder styr på hvor langt hun er)
-if 'page' not in st.session_state:
-    st.session_state.page = "start"
-if 'xp' not in st.session_state:
-    st.session_state.xp = 0
+# =========================================================================
+# 2. BRUGERSETTINGS / INDSTILLINGER (I Sidebaren)
+# =========================================================================
+st.sidebar.header("⚙️ Indstillinger for historien")
 
-# Scoreboard i toppen
-st.markdown(f"<div class='score-box'>⭐ {st.session_state.xp} XP • Læse-Streak: 🔥 1 dag</div>", unsafe_allow_html=True)
-st.title("📖 Det Magiske Eventyr")
+# Vælg alder / klassetrin
+alder_trin = st.sidebar.selectbox(
+    "Vælg målgruppe (Klassetrin / Alder):",
+    options=[
+        "Børnehave / 4-5 år (Meget simpelt sprog, korte sætninger)",
+        "Indskoling (0. - 2. klasse) / 6-8 år",
+        "Mellemtrin (3. - 5. klasse) / 9-11 år",
+        "Udskoling (6. - 9. klasse) / 12-15 år"
+    ],
+    index=1 # Sætter indskoling som standard
+)
 
-# Spillets historietræ (Logik)
-if st.session_state.page == "start":
-    st.markdown("<div class='story-text'>Du står foran en tæt, grøn skov. Solen skinner, men stien deler sig i to. Til venstre hører du den lave lyden af en prustende pony. Til højre glimter noget, der ligner en gylden fodbold bag en busk. Hvad gør du?</div>", unsafe_allow_html=True)
-    
-    if st.button("A) Gå til venstre mod lyden af ponyen"):
-        st.session_state.page = "pony"
-        st.session_state.xp += 10
-        st.rerun()
-        
-    if st.button("B) Gå til højre for at undersøge den gyldne fodbold"):
-        st.session_state.page = "fodbold"
-        st.session_state.xp += 10
-        st.rerun()
+# Valgfri ekstra indstilling: Toneleje
+historie_type = st.sidebar.selectbox(
+    "Historie-genre:",
+    options=["Spændende", "Sjov", "Lærerig", "Eventyrlig", "Hyggelig godnathistorie"]
+)
 
-elif st.session_state.page == "pony":
-    st.markdown("<div class='story-text'>Du møder en lille, hvid pony med vinger! Den kigger på dig med store øjne og siger: 'Hjælp mig! En drillesyg ulv har gemt min tryllestav.' Hvad gør du?</div>", unsafe_allow_html=True)
-    
-    if st.button("A) Led efter ulven i den mørke hule"):
-        st.session_state.page = "hule"
-        st.session_state.xp += 10
-        st.rerun()
-    if st.button("B) Tilbyd ponyen et saftigt rødt æble fra din taske"):
-        st.session_state.page = "aeble"
-        st.session_state.xp += 10
-        st.rerun()
+# =========================================================================
+# 3. BRUGER INPUT (Historie-idér)
+# =========================================================================
+st.subheader("📝 Hvad skal historien handle om?")
+bruger_input = st.text_area(
+    "Skriv stikord, karakterer eller en lille start på historien:",
+    placeholder="F.eks.: En modig hund, der hedder Max, som finder en hemmelig hule i skoven..."
+)
 
-elif st.session_state.page == "fodbold":
-    st.markdown("<div class='story-text'>Da du rører fodbolden, begynder den at svæve! Den flyver langsomt hen mod en gammel slotsport, som er låst med en stor hængelås. Hvad gør du?</div>", unsafe_allow_html=True)
-    
-    if st.button("A) Prøv at sparke bolden hårdt mod låsen"):
-        st.session_state.page = "spark"
-        st.session_state.xp += 10
-        st.rerun()
-    if st.button("B) Kig under måtten efter en gammel nøgle"):
-        st.session_state.page = "noegle"
-        st.session_state.xp += 10
-        st.rerun()
+# Knap til at generere historien
+if st.button("Skab historien ✨"):
+    if not bruger_input.strip():
+        st.warning("Husk lige at skrive lidt input eller nogle stikord først!")
+    else:
+        with st.spinner("AI'en tænker og skriver på livet løs... ✍️"):
+            try:
+                # 4. Opbygning af prompten baseret på brugerens valg
+                system_instruktion = (
+                    f"Du er en dygtig forfatter, der skriver historier til børn og unge. "
+                    f"Det er MEGET vigtigt, at du tilpasser sproget, sværhedsgraden, ordforrådet "
+                    f"og længden til følgende målgruppe: {alder_trin}. "
+                    f"Historien skal have en {historie_type.lower()} tone."
+                )
+                
+                bruger_prompt = (
+                    f"Skriv en god historie på dansk baseret på disse idéer:\n"
+                    f"'{bruger_input}'\n\n"
+                    f"Husk at tilpasse sværhedsgraden til målgruppen: {alder_trin}."
+                )
 
-# Afslutningsskærme (Slutpunkter)
-elif st.session_state.page in ["hule", "aeble", "spark", "noegle"]:
-    st.markdown(f"<div class='story-text'>Flot læst! Du klarede dette kapitel og nåede en spændende slutning. Du har samlet {st.session_state.xp} magiske point i dag!</div>", unsafe_allow_html=True)
-    if st.button("Start et nyt eventyr"):
-        st.session_state.page = "start"
-        st.rerun()
+                # 5. API Kald til OpenAI (Vi bruger gpt-4o-mini, da den er lynhurtig og billig)
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_instruktion},
+                        {"role": "user", "content": bruger_prompt}
+                    ],
+                    temperature=0.7 # Lidt kreativitet uden at gå helt amok
+                )
+                
+                # 6. Vis resultatet
+                historie_resultat = response.choices[0].message.content
+                
+                st.success("Så er historien klar! 🎉")
+                st.markdown("---")
+                st.write(historie_resultat)
+                st.markdown("---")
+                
+            except Exception as e:
+                st.error(f"Der skete en fejl under genereringen: {e}")
