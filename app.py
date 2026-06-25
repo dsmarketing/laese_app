@@ -118,9 +118,8 @@ if st.button("Skab historien ✨"):
                 # Liste over mulige modelnavne, som Google accepterer (vi prøver dem fra en ende af)
                 modeller_at_teste = [
                     "gemini-2.0-flash",
-                    "gemini-1.5-flash-latest",
                     "gemini-1.5-flash",
-                    "gemini-1.5-pro"
+                    "gemini-1.5-pro",
                 ]
                 
                 forbindelse_succes = False
@@ -131,6 +130,7 @@ if st.button("Skab historien ✨"):
                     try:
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_navn}:generateContent?key={api_key}"
                         response = requests.post(url, json=payload)
+                        response.raise_for_status()  # Kaster exception ved 4xx/5xx
                         response_data = response.json()
                         
                         # Tjek om vi fik et gyldigt tekstsvar retur
